@@ -1,0 +1,10 @@
+build/
+*.o
+*.pgm
+/test_curves
+compile_commands.json
+.cache/
+*.a
+*.so
+*.dylib
+CMakeUserPresets.json

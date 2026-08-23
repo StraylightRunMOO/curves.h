@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+        san: ["ON", "OFF"]
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=$([ "${{ matrix.san }}" = ON ] && echo Debug || echo Release) \
+            -DCURVES_BUILD_BENCHMARKS=ON \
+            -DCURVES_ENABLE_SANITIZERS=${{ matrix.san }}
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Direct pedantic compile
+        if: matrix.san == 'OFF'
+        run: |
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_curves.c -lm -o /tmp/test_curves
+          /tmp/test_curves
+      - name: Benchmark (smoke)
+        if: matrix.san == 'OFF'
+        run: ./build/benchmarks/bench_main
