@@ -32,6 +32,93 @@ jobs:
           ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
             tests/test_curves.c -lm -o /tmp/test_curves
           /tmp/test_curves
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_wide_keys.c -lm -o /tmp/test_wide_keys
+          /tmp/test_wide_keys
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_prefix.c -lm -o /tmp/test_prefix
+          /tmp/test_prefix
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_range.c -lm -o /tmp/test_range
+          /tmp/test_range
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_quant.c -lm -o /tmp/test_quant
+          /tmp/test_quant
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_simd.c -lm -o /tmp/test_simd
+          /tmp/test_simd
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_research.c -lm -o /tmp/test_research
+          /tmp/test_research
+          ${CC} -std=c11 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_dispatch.c -lm -o /tmp/test_dispatch
+          /tmp/test_dispatch
+      - name: Direct pedantic compile (C99)
+        if: matrix.san == 'OFF'
+        run: |
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_curves.c -lm -o /tmp/test_curves_c99
+          /tmp/test_curves_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_wide_keys.c -lm -o /tmp/test_wide_keys_c99
+          /tmp/test_wide_keys_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_prefix.c -lm -o /tmp/test_prefix_c99
+          /tmp/test_prefix_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_range.c -lm -o /tmp/test_range_c99
+          /tmp/test_range_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_quant.c -lm -o /tmp/test_quant_c99
+          /tmp/test_quant_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_simd.c -lm -o /tmp/test_simd_c99
+          /tmp/test_simd_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_research.c -lm -o /tmp/test_research_c99
+          /tmp/test_research_c99
+          ${CC} -std=c99 -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_dispatch.c -lm -o /tmp/test_dispatch_c99
+          /tmp/test_dispatch_c99
+      - name: CURVE_NO_SIMD
+        if: matrix.san == 'OFF'
+        run: |
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_curves.c -lm -o /tmp/test_curves_nosimd
+          /tmp/test_curves_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_wide_keys.c -lm -o /tmp/test_wide_keys_nosimd
+          /tmp/test_wide_keys_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_prefix.c -lm -o /tmp/test_prefix_nosimd
+          /tmp/test_prefix_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_range.c -lm -o /tmp/test_range_nosimd
+          /tmp/test_range_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_quant.c -lm -o /tmp/test_quant_nosimd
+          /tmp/test_quant_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_simd.c -lm -o /tmp/test_simd_nosimd
+          /tmp/test_simd_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_research.c -lm -o /tmp/test_research_nosimd
+          /tmp/test_research_nosimd
+          ${CC} -std=c11 -DCURVE_NO_SIMD -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_dispatch.c -lm -o /tmp/test_dispatch_nosimd
+          /tmp/test_dispatch_nosimd
+      - name: CURVE_RUNTIME_DISPATCH
+        if: matrix.san == 'OFF'
+        run: |
+          ${CC} -std=c11 -DCURVE_RUNTIME_DISPATCH -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_dispatch.c -lm -o /tmp/test_dispatch_rt
+          /tmp/test_dispatch_rt
+          ${CC} -std=c11 -DCURVE_RUNTIME_DISPATCH -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_simd.c -lm -o /tmp/test_simd_rt
+          /tmp/test_simd_rt
+          ${CC} -std=c11 -DCURVE_RUNTIME_DISPATCH -pedantic -Wall -Wextra -O2 -I include \
+            tests/test_research.c -lm -o /tmp/test_research_rt
+          /tmp/test_research_rt
       - name: Benchmark (smoke)
         if: matrix.san == 'OFF'
         run: ./build/benchmarks/bench_main

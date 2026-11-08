@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(curves VERSION 1.0.0 LANGUAGES C)
+project(curves VERSION 1.1.0 LANGUAGES C)
 
 option(CURVES_BUILD_TESTS        "Build test suite" ON)
 option(CURVES_BUILD_BENCHMARKS   "Build benchmarks" OFF)

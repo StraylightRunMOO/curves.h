@@ -1,46 +1,7 @@
 #include "curves.h"
 #include "test_common.h"
+#include "ref_curves.h"
 #include <stdlib.h>
-
-/* -------------------------------------------------------------------------- */
-/* Reference implementations (slow, loop-based, used for cross-checking)      */
-/* -------------------------------------------------------------------------- */
-
-/* Wikipedia/Burkardt Hilbert: rot/d2xy/xy2d, widened to 64-bit. */
-static void ref_rot(uint64_t n, uint64_t *x, uint64_t *y, uint64_t rx, uint64_t ry)
-{
-    if (ry == 0) {
-        uint64_t t;
-        if (rx == 1) { *x = n - 1 - *x; *y = n - 1 - *y; }
-        t = *x; *x = *y; *y = t;
-    }
-}
-
-static uint64_t ref_hilbert_xy2d(uint64_t x, uint64_t y, int bits)
-{
-    uint64_t d = 0, s;
-    for (s = 1ull << (bits - 1); s > 0; s >>= 1) {
-        uint64_t rx = (x & s) > 0;
-        uint64_t ry = (y & s) > 0;
-        d += s * s * ((3 * rx) ^ ry);
-        ref_rot(s, &x, &y, rx, ry);
-    }
-    return d;
-}
-
-static void ref_hilbert_d2xy(uint64_t d, int bits, uint64_t *x, uint64_t *y)
-{
-    uint64_t t = d, s;
-    *x = *y = 0;
-    for (s = 1; s < (1ull << bits); s <<= 1) {
-        uint64_t rx = 1 & (t >> 1);
-        uint64_t ry = 1 & (t ^ rx);
-        ref_rot(s, x, y, rx, ry);
-        *x += s * rx;
-        *y += s * ry;
-        t >>= 2;
-    }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Gray codes                                                                 */
@@ -87,6 +48,17 @@ static void test_morton2_roundtrip(void)
     ASSERT_INT_EQ(curve_morton2(0, 1), 2, "morton2(0,1) == 2");
     ASSERT_INT_EQ(curve_morton2(3, 2), 13, "morton2(3,2) == 0b1101");
     ASSERT_INT_EQ(curve_morton2(0xFFFF, 0xFFFF), 0xFFFFFFFFu, "morton2 max");
+
+    ok = 1;
+    for (uint32_t x = 0; x < 256 && ok; ++x)
+        for (uint32_t y = 0; y < 256 && ok; ++y) {
+            uint32_t d = curve_morton2(x, y);
+            uint32_t rx, ry;
+            if (d != ref_morton2(x, y)) { ok = 0; break; }
+            ref_morton2_decode(d, &rx, &ry);
+            if (rx != x || ry != y) { ok = 0; break; }
+        }
+    ASSERT_TRUE(ok, "morton2 matches nested-loop reference");
 }
 
 static void test_morton3_roundtrip(void)
@@ -106,6 +78,18 @@ done:
     ASSERT_INT_EQ(curve_morton3(1, 0, 0), 1, "morton3(1,0,0) == 1");
     ASSERT_INT_EQ(curve_morton3(0, 1, 0), 2, "morton3(0,1,0) == 2");
     ASSERT_INT_EQ(curve_morton3(0, 0, 1), 4, "morton3(0,0,1) == 4");
+
+    ok = 1;
+    for (uint32_t x = 0; x < 16 && ok; ++x)
+        for (uint32_t y = 0; y < 16 && ok; ++y)
+            for (uint32_t z = 0; z < 16 && ok; ++z) {
+                uint64_t d = curve_morton3(x, y, z);
+                uint32_t rx, ry, rz;
+                if (d != ref_morton3(x, y, z)) { ok = 0; break; }
+                ref_morton3_decode(d, &rx, &ry, &rz);
+                if (rx != x || ry != y || rz != z) { ok = 0; break; }
+            }
+    ASSERT_TRUE(ok, "morton3 matches nested-loop reference, 16^3");
 }
 
 static void test_morton2_64(void)
@@ -116,10 +100,12 @@ static void test_morton2_64(void)
 
     /* consistency with 32-bit version on the low range */
     for (x = 0; x < 512 && ok; ++x)
-        for (y = 0; y < 512 && ok; ++y)
-            if (curve_morton2_64((uint32_t)x, (uint32_t)y) !=
-                curve_morton2((uint32_t)x, (uint32_t)y))
+        for (y = 0; y < 512 && ok; ++y) {
+            uint64_t got = curve_morton2_64((uint32_t)x, (uint32_t)y);
+            if (got != curve_morton2((uint32_t)x, (uint32_t)y) ||
+                got != ref_morton2_64((uint32_t)x, (uint32_t)y))
                 ok = 0;
+        }
     ASSERT_TRUE(ok, "morton2_64 consistent with morton2 on low range");
 
     /* roundtrip including high bits */
@@ -196,6 +182,28 @@ static void test_hilbert2_bijective_all_bits(void)
         free(seen);
     }
     ASSERT_TRUE(ok, "hilbert2 bijective + inverse + matches reference, bits 1..8");
+}
+
+static void test_hilbert2_adjacency(void)
+{
+    int ok = 1;
+    for (int bits = 1; bits <= 5 && ok; ++bits) {
+        uint32_t N = 1u << bits;
+        uint64_t total = (uint64_t)N * N;
+        uint32_t px = 0, py = 0;
+        for (uint64_t d = 0; d < total; ++d) {
+            uint32_t x, y;
+            curve_hilbert_d2xy((uint32_t)d, bits, &x, &y);
+            if (d > 0) {
+                uint32_t dx = x > px ? x - px : px - x;
+                uint32_t dy = y > py ? y - py : py - y;
+                if (dx + dy != 1) { ok = 0; break; }
+            }
+            px = x;
+            py = y;
+        }
+    }
+    ASSERT_TRUE(ok, "hilbert2 consecutive cells are edge-adjacent, bits 1..5");
 }
 
 static void test_hilbert2_sampled_16bit(void)
@@ -341,6 +349,53 @@ static void test_hilbertnd_matches_2d(void)
             }
     }
     ASSERT_TRUE(ok, "hilbertnd n=2 matches curve_hilbert_xy2d");
+}
+
+/* One Hilbert level is n_dims bits of the index. Points sharing that prefix
+ * occupy an axis-aligned 2^(bits-1) hypercube. */
+static void test_hilbertnd_prefix_cells(void)
+{
+    int ok = 1;
+    int bits = 4;
+    uint32_t N = 1u << bits;
+    uint32_t half = N / 2u;
+    uint64_t total = (uint64_t)N * N;
+    uint64_t cell = total / 4u; /* 2-bit prefix → 4 cells */
+    uint64_t c;
+    for (c = 0; c < 4 && ok; ++c) {
+        uint32_t minx = 0xFFFFFFFFu, miny = 0xFFFFFFFFu, maxx = 0, maxy = 0;
+        uint64_t d;
+        for (d = c * cell; d < (c + 1) * cell; ++d) {
+            uint32_t coords[2];
+            curve_hilbertnd_d2xy(d, coords, 2, bits);
+            if (coords[0] < minx) minx = coords[0];
+            if (coords[1] < miny) miny = coords[1];
+            if (coords[0] > maxx) maxx = coords[0];
+            if (coords[1] > maxy) maxy = coords[1];
+        }
+        if (maxx - minx + 1u != half || maxy - miny + 1u != half)
+            ok = 0;
+    }
+    ASSERT_TRUE(ok, "hilbertnd n=2 bits=4: 2-bit prefixes are 8x8 squares");
+}
+
+static void test_ref_pack_roundtrip(void)
+{
+    uint32_t X[4] = { 1u, 2u, 3u, 4u }, Y[4];
+    uint64_t h, words[2];
+    int i, ok = 1;
+    h = ref_pack_axes_u64(X, 4, 4);
+    ref_unpack_axes_u64(h, 4, 4, Y);
+    for (i = 0; i < 4; i++)
+        if (Y[i] != X[i]) ok = 0;
+    ref_pack_axes_words(X, 4, 4, words, 2);
+    ASSERT_TRUE(ok && words[0] == (h << (64 - 16)) && words[1] == 0,
+                "ref pack u64 matches left-aligned words");
+    ref_unpack_axes_words(words, 4, 4, Y);
+    ok = 1;
+    for (i = 0; i < 4; i++)
+        if (Y[i] != X[i]) ok = 0;
+    ASSERT_TRUE(ok, "ref pack words roundtrip");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -781,11 +836,14 @@ int main(void)
     RUN_TEST(test_morton2_64);
     RUN_TEST(test_hilbert2_known_vectors);
     RUN_TEST(test_hilbert2_bijective_all_bits);
+    RUN_TEST(test_hilbert2_adjacency);
     RUN_TEST(test_hilbert2_sampled_16bit);
     RUN_TEST(test_hilbert2_64);
     RUN_TEST(test_hilbert3_bijective);
     RUN_TEST(test_hilbertnd_roundtrip);
     RUN_TEST(test_hilbertnd_matches_2d);
+    RUN_TEST(test_hilbertnd_prefix_cells);
+    RUN_TEST(test_ref_pack_roundtrip);
     RUN_TEST(test_moore_known_path);
     RUN_TEST(test_moore_bijective_continuous);
     RUN_TEST(test_sierpinski_ordering);

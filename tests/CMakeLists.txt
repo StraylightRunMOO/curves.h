@@ -1,5 +1,12 @@
 set(TEST_SOURCES
     test_curves.c
+    test_wide_keys.c
+    test_prefix.c
+    test_range.c
+    test_quant.c
+    test_simd.c
+    test_research.c
+    test_dispatch.c
 )
 
 foreach(src ${TEST_SOURCES})
